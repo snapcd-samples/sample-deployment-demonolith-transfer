@@ -1,0 +1,120 @@
+# The team story of a transfer, as three CI lanes — for illustration, so
+# everything targets the pr-to-me demo branch and nothing runs on main.
+#
+#   slice-diff        every PR into pr-to-me — the standing gate, once per touched
+#                     root. A developer runs `demonolith transfer refactor` locally
+#                     and the PR carries the moved code plus a copy of the transfer
+#                     map in every touched root; each matrix leg runs a bare
+#                     `transfer refactor diff` against one root and its own map copy,
+#                     with nothing else needed. In a multi-repo landscape each of
+#                     these legs is a different repo's whole gate. Offline, no
+#                     credentials, seconds. Skips when no transfer is in flight.
+#
+#   migrate-rehearse  every PR into pr-to-me — build the pre-transfer world from the
+#                     PR's base commit, switch to the PR's code, then `transfer
+#                     migrate map --all` (pull read-only, pin, fragments) and
+#                     `transfer migrate prove --all` (every root plans to zero
+#                     changes, producer values threaded). Nothing is pushed, so a
+#                     rejected PR leaves the world untouched.
+#
+#   migrate           manual (workflow_dispatch), on pr-to-me only — the state move,
+#                     run once, after the merge and during the freeze. Safe to re-run
+#                     after a crash: already-written roots skip. No CI pre-gate is
+#                     needed: demonolith itself refuses a stale pin or an out-of-sync
+#                     map.
+#
+# This sample builds a throwaway world per job (a simulated S3 state store, then the
+# baseline apply of the pre-transfer roots) so the workflow is self-contained. In a
+# real repository the store and the roots' states already exist: the store and
+# baseline steps disappear, the baseline_ref input is not needed, and the values
+# .env carries here come from CI secrets instead of the checked-in mock defaults.
+
+name: transfer
+
+on:
+  pull_request:
+    branches: [pr-to-me]
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: "Commit to build the pre-transfer world from (illustration only; a real world already exists)"
+        required: true
+
+jobs:
+  slice-diff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        root: [app, networking, database, snapcd]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install demonolith
+        run: go install github.com/schrieksoft/demonolith@latest
+      - name: transfer refactor diff — this root matches its map copy
+        run: |
+          if [ ! -f "roots/${{ matrix.root }}/demonolith-transfer-map.yaml" ]; then
+            echo "No transfer in flight for roots/${{ matrix.root }}; nothing to gate."
+            exit 0
+          fi
+          demonolith transfer refactor diff --root-dir "roots/${{ matrix.root }}"
+
+  migrate-rehearse:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - uses: opentofu/setup-opentofu@v1
+      - name: Install demonolith
+        run: go install github.com/schrieksoft/demonolith@latest
+      - name: Build the pre-transfer world (from the PR's base commit)
+        run: |
+          if [ ! -f roots/app/demonolith-transfer-map.yaml ]; then
+            echo "No transfer in flight; nothing to rehearse."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          git checkout ${{ github.event.pull_request.base.sha }}
+          ./step0_store.sh
+          ./step1_env.sh
+          ./step2_baseline.sh
+          git checkout ${{ github.event.pull_request.head.sha }}
+      - name: transfer migrate map + prove — read-only, nothing pushed
+        run: |
+          if [ "${SKIP:-0}" = "1" ]; then exit 0; fi
+          source .env
+          demonolith transfer migrate map --all --engine tofu --root-dir roots/app
+          demonolith transfer migrate prove --all --engine tofu --root-dir roots/app
+
+  migrate:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/pr-to-me'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - uses: opentofu/setup-opentofu@v1
+      - name: Install demonolith
+        run: go install github.com/schrieksoft/demonolith@latest
+      - name: Build the pre-transfer world (illustration only)
+        run: |
+          git checkout ${{ inputs.baseline_ref }}
+          ./step0_store.sh
+          ./step1_env.sh
+          ./step2_baseline.sh
+          git checkout ${{ github.sha }}
+      - name: transfer migrate — the state move
+        run: |
+          source .env
+          ./step4_migrate.sh

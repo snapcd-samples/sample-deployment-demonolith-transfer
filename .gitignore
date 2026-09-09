@@ -1,0 +1,21 @@
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.backup
+crash.log
+crash.*.log
+
+# demonolith transfer artifacts: demono.tfplan is the proofs' plan file;
+# every root's .demono-transfer/ is its slice workdir (pulled state copies,
+# backups, and the fragment/outputs/receipt files slices exchange; it also
+# gitignores itself). The transfer map — the copy in every touched root —
+# and the receipts ARE committed, and the moved code lands in the roots'
+# own files.
+.demono-transfer/
+demono.tfplan
+
+# the session's local input file, seeded from its committed .sample
+# counterpart by step1_env.sh
+.env
