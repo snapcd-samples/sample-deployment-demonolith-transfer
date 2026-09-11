@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 # Start the simulated S3 state store and create the bucket the backends
-# expect. Everything here is idempotent, so re-running is always safe — and
+# expect. Everything here is idempotent, so re-running is always safe - and
 # if a store is already serving localhost:9000 (this sample's own, or a
 # sibling sample's), it is reused instead of started.
 if curl -sf http://localhost:9000/minio/health/live >/dev/null 2>&1; then

@@ -4,7 +4,7 @@
 # this container only.
 #
 # Start it with ./step0_store.sh, which also creates the bucket and waits
-# for readiness from the outside — the container deliberately carries no
+# for readiness from the outside - the container deliberately carries no
 # healthcheck.
 services:
   minio:

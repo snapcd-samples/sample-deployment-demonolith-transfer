@@ -1,6 +1,6 @@
 # Wires the four roots into Snap CD: one snapcd_module per root, the shape
 # demonolith's bootstrap generates for a split. Applying this root needs a
-# running Snap CD server and is the closing act of the sample — but the
+# running Snap CD server and is the closing act of the sample - but the
 # transfer updates it either way: the moved dependency becomes a
 # snapcd_module_input_from_output (and the ordering dependency a
 # snapcd_depends_on_module), appended below by step 3.

@@ -1,7 +1,7 @@
-# The team story of a transfer, as three CI lanes — for illustration, so
+# The team story of a transfer, as three CI lanes - for illustration, so
 # everything targets the pr-to-me demo branch and nothing runs on main.
 #
-#   slice-diff        every PR into pr-to-me — the standing gate, once per touched
+#   slice-diff        every PR into pr-to-me - the standing gate, once per touched
 #                     root. A developer runs `demonolith transfer refactor` locally
 #                     and the PR carries the moved code plus a copy of the transfer
 #                     map in every touched root; each matrix leg runs a bare
@@ -10,14 +10,14 @@
 #                     these legs is a different repo's whole gate. Offline, no
 #                     credentials, seconds. Skips when no transfer is in flight.
 #
-#   migrate-rehearse  every PR into pr-to-me — build the pre-transfer world from the
+#   migrate-rehearse  every PR into pr-to-me - build the pre-transfer world from the
 #                     PR's base commit, switch to the PR's code, then `transfer
-#                     migrate map --all` (pull read-only, pin, fragments) and
-#                     `transfer migrate prove --all` (every root plans to zero
+#                     migrate map --both` (pull read-only, pin, the fragment) and
+#                     `transfer migrate prove --both` (both roots plan to zero
 #                     changes, producer values threaded). Nothing is pushed, so a
 #                     rejected PR leaves the world untouched.
 #
-#   migrate           manual (workflow_dispatch), on pr-to-me only — the state move,
+#   migrate           manual (workflow_dispatch), on pr-to-me only - the state move,
 #                     run once, after the merge and during the freeze. Safe to re-run
 #                     after a crash: already-written roots skip. No CI pre-gate is
 #                     needed: demonolith itself refuses a stale pin or an out-of-sync
@@ -54,7 +54,7 @@ jobs:
           go-version: stable
       - name: Install demonolith
         run: go install github.com/schrieksoft/demonolith@latest
-      - name: transfer refactor diff — this root matches its map copy
+      - name: transfer refactor diff - this root matches its map copy
         run: |
           if [ ! -f "roots/${{ matrix.root }}/demonolith-transfer-map.yaml" ]; then
             echo "No transfer in flight for roots/${{ matrix.root }}; nothing to gate."
@@ -87,12 +87,12 @@ jobs:
           ./step1_env.sh
           ./step2_baseline.sh
           git checkout ${{ github.event.pull_request.head.sha }}
-      - name: transfer migrate map + prove — read-only, nothing pushed
+      - name: transfer migrate map + prove - read-only, nothing pushed
         run: |
           if [ "${SKIP:-0}" = "1" ]; then exit 0; fi
           source .env
-          demonolith transfer migrate map --all --engine tofu --root-dir roots/app
-          demonolith transfer migrate prove --all --engine tofu --root-dir roots/app
+          demonolith transfer migrate map --both --engine tofu --root-dir roots/app
+          demonolith transfer migrate prove --both --engine tofu --root-dir roots/app
 
   migrate:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/pr-to-me'
@@ -114,7 +114,7 @@ jobs:
           ./step1_env.sh
           ./step2_baseline.sh
           git checkout ${{ github.sha }}
-      - name: transfer migrate — the state move
+      - name: transfer migrate - the state move
         run: |
           source .env
           ./step4_migrate.sh
