@@ -5,7 +5,7 @@ source .env
 
 # Establish the world the transfer starts from: the four living roots the
 # split left behind, each applied into its own remote state, each planning
-# clean. The clean plans are the prerequisite demonolith documents — drift
+# clean. The clean plans are the prerequisite demonolith documents - drift
 # is ruled out here, not by the transfer. The snapcd root is applied later,
 # once a Snap CD server is running (see the README's closing section).
 for root in networking cluster database app; do

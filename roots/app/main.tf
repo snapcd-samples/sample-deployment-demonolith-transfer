@@ -1,18 +1,20 @@
-# The app root — the source of the transfer. Over time it accumulated
+# The app root - the source of the transfers. Over time it accumulated
 # resources that belong elsewhere: the DNS zone (and its id) belong in
-# networking, the backup suffix belongs in database. Each carries a move
-# decorator naming its destination as a directory relative to this root.
+# networking, the backup suffix belongs in database. A transfer moves blocks
+# into one receiver, so this is two transfers, run one after the other.
 #
-# The knots that make this move interesting:
+# The first transfer (step 3) moves the two DNS blocks, each marked with a
+# bare transfer comment; the receiver is named once, on the command line.
+# The knots that make it interesting:
 #   - endpoint_name still reads the moved dns_zone: after the move that
 #     reference crosses a root boundary, so demonolith rewrites it to an
 #     input variable here, adds the matching output to networking, and adds
 #     the snapcd_module_input_from_output to the snapcd root.
-#   - backup_suffix depends_on the moved dns_zone_id: an ordering-only
-#     dependency between the two receivers, which becomes a
-#     snapcd_depends_on_module.
-#   - backup_suffix reads local.quota_max, which reads var.quota_ceiling:
-#     both declarations travel with it into database.
+#   - backup_suffix depends_on the moved dns_zone_id: the entry is dropped
+#     from the block and becomes a snapcd_depends_on_module instead.
+#
+# The second transfer (step 5) marks backup_suffix the same way and moves it
+# to database, together with the variable and local it reads.
 
 resource "random_pet" "release_name" {
   length = var.release_words
@@ -22,16 +24,15 @@ resource "random_pet" "endpoint_name" {
   prefix = random_pet.dns_zone.id
 }
 
-# @demono:move ../networking
+# @demono:transfer
 resource "random_pet" "dns_zone" {
   length = 2
 }
 
-# @demono:move ../networking
+# @demono:transfer
 resource "random_uuid" "dns_zone_id" {
 }
 
-# @demono:move ../database
 resource "random_id" "backup_suffix" {
   byte_length = local.quota_max
   depends_on  = [random_uuid.dns_zone_id]
